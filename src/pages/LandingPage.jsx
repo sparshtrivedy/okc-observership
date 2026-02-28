@@ -7,7 +7,7 @@ export default function LandingPage() {
   return (
     <div className="space-y-10" data-design-mode="true">
       <section className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-500 to-violet-400 px-8 py-12 text-white">
-        <p className="mb-5 inline-block rounded-full bg-white/25 px-4 py-1 text-xs font-semibold uppercase tracking-wide">
+        <p className="mb-5 inline-block rounded-full bg-white/25 px-4 py-1 text-xs font-medium uppercase tracking-wide">
           Now accepting applications
         </p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight md:text-5xl">
