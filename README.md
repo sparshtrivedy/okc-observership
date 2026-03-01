@@ -10,7 +10,8 @@ Full-stack scaffold for a clinical rotation portal in Oklahoma City.
 ## Routes
 - `/` Landing page
 - `/apply` Visa/travel-gated multi-step application
-- `/student` Student dashboard (status timeline + document vault)
+- `/student/login` Student login
+- `/student` Student dashboard (status timeline + document vault, protected)
 - `/admin/login` Admin login (`okcadmin`)
 - `/admin` Protected admin dashboard (filters, detail side-panel, status controls)
 
@@ -37,6 +38,7 @@ Frontend runs at `http://localhost:5173` and backend at `http://localhost:4000`.
 
 1. Add `.env` with:
    - `DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<db>`
+   - `JWT_SECRET=<long-random-secret>`
 2. Apply one-shot schema SQL:
    - `npm run db:init`
 3. Start app:
@@ -45,6 +47,10 @@ Frontend runs at `http://localhost:5173` and backend at `http://localhost:4000`.
 ### Notes
 
 - `db_init.sql` is a convenience initializer for local setup.
+- New student accounts are created during `/apply` submission:
+   - Passwords are hashed with `bcrypt` (includes per-password salt).
+   - A `users` row is created with `role='student'` and linked to `applicants.user_id`.
+   - A JWT is issued for the student session.
 - On backend startup, a bootstrap admin user is created in `users` if none exists:
    - Email/Login ID: `admin` (or set `ADMIN_BOOTSTRAP_EMAIL` in `.env`)
    - Password: `okcadmin` (or set `ADMIN_BOOTSTRAP_PASSWORD` in `.env`)

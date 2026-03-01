@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { APP_STATUSES, DOC_TYPES } from '../types';
 
 const AppContext = createContext(null);
+const STUDENT_TOKEN_KEY = 'studentAuthToken';
 
 function normalizeApplicant(applicant) {
   const normalizedDocuments = DOC_TYPES.reduce((acc, doc) => {
@@ -56,8 +57,26 @@ function normalizeApplicant(applicant) {
 export function AppProvider({ children }) {
   const [applicants, setApplicants] = useState([]);
   const [currentStudentId, setCurrentStudentId] = useState('');
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [studentToken, setStudentToken] = useState(() => localStorage.getItem(STUDENT_TOKEN_KEY) || '');
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [mailLog, setMailLog] = useState([]);
+
+  function storeStudentToken(token) {
+    if (token) {
+      localStorage.setItem(STUDENT_TOKEN_KEY, token);
+      setStudentToken(token);
+      return;
+    }
+
+    localStorage.removeItem(STUDENT_TOKEN_KEY);
+    setStudentToken('');
+  }
+
+  function clearStudentSession() {
+    storeStudentToken('');
+    setStudentProfile(null);
+  }
 
   useEffect(() => {
     async function loadApplicants() {
@@ -79,9 +98,42 @@ export function AppProvider({ children }) {
     loadApplicants();
   }, []);
 
+  useEffect(() => {
+    async function loadStudentProfile() {
+      if (!studentToken) {
+        setStudentProfile(null);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/student/me', {
+          headers: {
+            Authorization: `Bearer ${studentToken}`
+          }
+        });
+
+        if (!response.ok) {
+          clearStudentSession();
+          return;
+        }
+
+        const data = await response.json();
+        if (data?.applicant) {
+          const normalized = normalizeApplicant(data.applicant);
+          setStudentProfile(normalized);
+          setCurrentStudentId(normalized.id);
+        }
+      } catch {
+        clearStudentSession();
+      }
+    }
+
+    loadStudentProfile();
+  }, [studentToken]);
+
   const currentStudent = useMemo(
-    () => applicants.find((item) => item.id === currentStudentId) || applicants[0],
-    [applicants, currentStudentId]
+    () => studentProfile || applicants.find((item) => item.id === currentStudentId) || applicants[0] || null,
+    [applicants, currentStudentId, studentProfile]
   );
 
   async function addApplicant(formData) {
@@ -103,7 +155,8 @@ export function AppProvider({ children }) {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create applicant');
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || 'Failed to create applicant');
     }
 
     const data = await response.json();
@@ -111,7 +164,46 @@ export function AppProvider({ children }) {
 
     setApplicants((prev) => [newApplicant, ...prev]);
     setCurrentStudentId(newApplicant.id);
+
+    if (data?.token) {
+      storeStudentToken(data.token);
+      setStudentProfile(newApplicant);
+    }
+
     return newApplicant;
+  }
+
+  async function studentLogin(email, password) {
+    const response = await fetch('/api/student/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || 'Failed to login');
+    }
+
+    const data = await response.json();
+    const normalized = normalizeApplicant(data.applicant);
+    storeStudentToken(data.token);
+    setStudentProfile(normalized);
+    setCurrentStudentId(normalized.id);
+    setApplicants((prev) => {
+      const existing = prev.some((item) => item.id === normalized.id);
+      if (existing) {
+        return prev.map((item) => (item.id === normalized.id ? normalized : item));
+      }
+
+      return [normalized, ...prev];
+    });
+
+    return normalized;
+  }
+
+  function studentLogout() {
+    clearStudentSession();
   }
 
   async function updateDocumentStatus(applicantId, docType, status) {
@@ -129,6 +221,9 @@ export function AppProvider({ children }) {
     const updatedApplicant = normalizeApplicant(data.applicant);
 
     setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
+    if (studentProfile?.id === applicantId) {
+      setStudentProfile(updatedApplicant);
+    }
     return updatedApplicant;
   }
 
@@ -148,6 +243,9 @@ export function AppProvider({ children }) {
     const updatedApplicant = normalizeApplicant(data.applicant);
 
     setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
+    if (studentProfile?.id === applicantId) {
+      setStudentProfile(updatedApplicant);
+    }
 
     const target = applicants.find((applicant) => applicant.id === applicantId);
     const message = {
@@ -183,14 +281,20 @@ export function AppProvider({ children }) {
     const data = await response.json();
     const updatedApplicant = normalizeApplicant(data.applicant);
     setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
+    if (studentProfile?.id === applicantId) {
+      setStudentProfile(updatedApplicant);
+    }
     return updatedApplicant;
   }
 
   const value = {
     applicants,
     currentStudent,
+    studentAuthenticated: Boolean(studentToken && studentProfile),
     setCurrentStudentId,
     addApplicant,
+    studentLogin,
+    studentLogout,
     uploadDocument,
     updateDocumentStatus,
     setApplicantStatus,

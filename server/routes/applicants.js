@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createApplicant, listApplicants, updateApplicantDocument, updateApplicantStatus } from '../services/applicantService.js';
+import { signStudentToken } from '../auth/token.js';
 
 const router = Router();
 
@@ -15,13 +16,22 @@ router.get('/', async (_req, res) => {
 router.post('/', async (req, res) => {
   try {
     const payload = req.body || {};
-    if (!payload.firstName || !payload.lastName || !payload.email) {
-      res.status(400).json({ error: 'firstName, lastName, and email are required' });
+    if (!payload.firstName || !payload.lastName || !payload.email || !payload.password) {
+      res.status(400).json({ error: 'firstName, lastName, email, and password are required' });
+      return;
+    }
+
+    if (String(payload.password).length < 8) {
+      res.status(400).json({ error: 'password must be at least 8 characters' });
       return;
     }
 
     const applicant = await createApplicant(payload);
-    res.status(201).json({ applicant });
+    const token = applicant.userId
+      ? signStudentToken({ userId: applicant.userId, email: applicant.email, applicantId: applicant.id })
+      : null;
+
+    res.status(201).json({ applicant, token });
   } catch (error) {
     if (String(error.message).toLowerCase().includes('duplicate') || String(error.message).includes('unique')) {
       res.status(409).json({ error: 'applicant with this email already exists' });

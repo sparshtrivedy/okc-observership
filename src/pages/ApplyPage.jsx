@@ -35,11 +35,14 @@ export default function ApplyPage() {
   const [eligible, setEligible] = useState(false);
   const [currentStep, setCurrentStep] = useState('step1');
   const [files, setFiles] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [monthRangeStart, setMonthRangeStart] = useState(null);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     birthDate: '',
     countryOfBirth: '',
@@ -68,6 +71,9 @@ export default function ApplyPage() {
       form.firstName &&
       form.lastName &&
       form.email &&
+      form.password &&
+      form.password.length >= 8 &&
+      form.password === form.confirmPassword &&
       form.phone &&
       form.birthDate &&
       form.countryOfBirth &&
@@ -146,6 +152,7 @@ export default function ApplyPage() {
 
   async function handleSubmit() {
     try {
+      setSubmitError('');
       const applicant = await addApplicant(form);
       const uploads = Object.entries(files)
         .filter(([, file]) => Boolean(file))
@@ -153,8 +160,8 @@ export default function ApplyPage() {
 
       await Promise.all(uploads);
       navigate('/student');
-    } catch {
-      // Keep UX minimal for now; submit button remains enabled for retry.
+    } catch (error) {
+      setSubmitError(error.message || 'Unable to submit application. Please try again.');
     }
   }
 
@@ -194,6 +201,26 @@ export default function ApplyPage() {
                 value={form.email}
                 onChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
               />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  label="Create Password"
+                  type="password"
+                  value={form.password}
+                  onChange={(value) => setForm((prev) => ({ ...prev, password: value }))}
+                />
+                <Field
+                  label="Confirm Password"
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(value) => setForm((prev) => ({ ...prev, confirmPassword: value }))}
+                />
+              </div>
+              {form.password && form.password.length < 8 ? (
+                <p className="text-xs text-red-600">Password must be at least 8 characters.</p>
+              ) : null}
+              {form.confirmPassword && form.password !== form.confirmPassword ? (
+                <p className="text-xs text-red-600">Password confirmation does not match.</p>
+              ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 <Field
                   label="Phone Number"
@@ -445,6 +472,7 @@ export default function ApplyPage() {
                 </Select>
               </div>
 
+              {submitError ? <p className="text-xs text-red-600">{submitError}</p> : null}
               <Button onClick={handleSubmit} disabled={!canSubmit}>Submit Application</Button>
             </TabsContent>
           </Tabs>

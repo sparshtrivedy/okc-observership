@@ -1,11 +1,19 @@
 import { FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import StatusTimeline from '../components/forms/StatusTimeline';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 
 export default function StudentDashboard() {
-  const { currentStudent } = useApp();
+  const navigate = useNavigate();
+  const { currentStudent, studentLogout } = useApp();
+
+  function handleLogout() {
+    studentLogout();
+    navigate('/student/login');
+  }
 
   if (!currentStudent) {
     return <p className="text-sm text-slate-600">No student profile found yet.</p>;
@@ -18,6 +26,9 @@ export default function StudentDashboard() {
           <CardTitle>Welcome, {currentStudent.fullName}</CardTitle>
           <CardDescription>Track your application and document verification progress.</CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleLogout}>Sign Out</Button>
+        </CardContent>
       </Card>
 
       <Card>

@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import applicantsRouter from './routes/applicants.js';
 import adminRouter from './routes/admin.js';
+import studentRouter from './routes/student.js';
 import { ensureBootstrapAdmin } from './services/adminService.js';
 
 const app = express();
@@ -17,6 +18,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/applicants', applicantsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/student', studentRouter);
 
 async function startServer() {
   try {
