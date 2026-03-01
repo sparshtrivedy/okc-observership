@@ -18,7 +18,7 @@ export default function AppShell({ children }) {
               <Hospital className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-lg font-semibold text-slate-900">OKC Observership</p>
+              <p className="text-lg font-semibold text-slate-900">OKC Clinical Experience</p>
             </div>
           </Link>
           <nav className="flex items-center gap-2 text-sm font-medium">

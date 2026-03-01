@@ -11,10 +11,10 @@ export default function LandingPage() {
           Now accepting applications
         </p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight md:text-5xl">
-          Clinical Observership in <span className="text-sky-300">Oklahoma City</span>
+          Clinical Experience in <span className="text-sky-300">Oklahoma City</span>
         </h1>
         <p className="mt-4 max-w-2xl text-slate-200">
-          Structured observership and rotation opportunities for international medical students in a supportive outpatient clinic environment.
+          Structured US clinical experience tracks, including observership and hands-on opportunities, in a supportive outpatient clinic environment.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button size="lg" className="bg-white text-blue-700 hover:bg-white/90" asChild>

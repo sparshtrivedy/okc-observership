@@ -26,7 +26,7 @@ export default function GatekeeperModal({ open, onEligibilityChange }) {
             value={hasVisa}
             onChange={setHasVisa}
           />
-          <Question title="Can you travel to OKC for in-person rotation?" value={canTravel} onChange={setCanTravel} />
+          <Question title="Can you travel to OKC for in-person clinical experience?" value={canTravel} onChange={setCanTravel} />
 
           {complete && !eligible ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

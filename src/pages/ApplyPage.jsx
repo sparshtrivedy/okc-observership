@@ -23,7 +23,7 @@ const monthOptions = [
   'November 2026',
   'December 2026'
 ];
-const opportunityOptions = ['Hands On', 'Observership', 'Clinical Research'];
+const opportunityOptions = ['Hands-On Experience', 'Observership', 'Clinical Research'];
 const usStatusOptions = ['Citizen', 'Permanent Resident', 'Temporary Resident', 'None'];
 const setupOptions = ['Clinic', 'Hospital', 'Both'];
 const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
@@ -158,7 +158,7 @@ export default function ApplyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>USCE Application</CardTitle>
+          <CardTitle>Clinical Experience Application (USCE)</CardTitle>
           <CardDescription>Complete all sections. Missing required fields will block submission.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -358,7 +358,7 @@ export default function ApplyPage() {
               </div>
 
               <div>
-                <Label>Opportunities You Are Looking For</Label>
+                <Label>Preferred Experience Type(s)</Label>
                 <p className="mt-1 text-xs text-slate-500">Select all that apply.</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {opportunityOptions.map((opportunity) => (

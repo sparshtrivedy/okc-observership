@@ -17,6 +17,9 @@ function normalizeApplicant(applicant) {
   const firstName = applicant.firstName || nameParts[0] || '';
   const lastName = applicant.lastName || nameParts.slice(1).join(' ') || '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || applicant.fullName || '';
+  const normalizedOpportunityTypes = (applicant.opportunityTypes || []).map((type) =>
+    type === 'Hands On' ? 'Hands-On Experience' : type
+  );
 
   return {
     id: applicant.id,
@@ -39,7 +42,7 @@ function normalizeApplicant(applicant) {
     step2Score: applicant.step2Score === '' || applicant.step2Score == null ? null : Number(applicant.step2Score),
     step3Score: applicant.step3Score === '' || applicant.step3Score == null ? null : Number(applicant.step3Score),
     preferredMonths: applicant.preferredMonths || [],
-    opportunityTypes: applicant.opportunityTypes || [],
+    opportunityTypes: normalizedOpportunityTypes,
     setupPreference: applicant.setupPreference || 'Clinic',
     specialtyPreference: applicant.specialtyPreference || '',
     accommodationNeeded: applicant.accommodationNeeded || 'No',
