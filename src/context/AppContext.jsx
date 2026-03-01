@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { starterApplicants } from '../data/mockData';
 import { APP_STATUSES, DOC_TYPES } from '../types';
 
 const AppContext = createContext(null);
@@ -55,8 +54,8 @@ function normalizeApplicant(applicant) {
 }
 
 export function AppProvider({ children }) {
-  const [applicants, setApplicants] = useState(starterApplicants.map(normalizeApplicant));
-  const [currentStudentId, setCurrentStudentId] = useState(starterApplicants[0].id);
+  const [applicants, setApplicants] = useState([]);
+  const [currentStudentId, setCurrentStudentId] = useState('');
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [mailLog, setMailLog] = useState([]);
 
@@ -66,12 +65,14 @@ export function AppProvider({ children }) {
         const response = await fetch('/api/applicants');
         if (!response.ok) throw new Error('API unavailable');
         const data = await response.json();
-        if (Array.isArray(data?.applicants) && data.applicants.length > 0) {
-          setApplicants(data.applicants.map(normalizeApplicant));
-          setCurrentStudentId(data.applicants[0].id);
+        if (Array.isArray(data?.applicants)) {
+          const normalized = data.applicants.map(normalizeApplicant);
+          setApplicants(normalized);
+          setCurrentStudentId(normalized[0]?.id || '');
         }
       } catch {
-        // Falls back to local mock data.
+        setApplicants([]);
+        setCurrentStudentId('');
       }
     }
 
@@ -83,10 +84,9 @@ export function AppProvider({ children }) {
     [applicants, currentStudentId]
   );
 
-  function addApplicant(formData) {
-    const newApplicant = normalizeApplicant({
+  async function addApplicant(formData) {
+    const payload = {
       ...formData,
-      id: `A-${Date.now().toString().slice(-6)}`,
       status: 'Submitted',
       documents: {
         CV: 'Action Required',
@@ -94,72 +94,96 @@ export function AppProvider({ children }) {
         'Step Score Report': 'Action Required',
         'Immunization Records': 'Action Required'
       }
+    };
+
+    const response = await fetch('/api/applicants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to create applicant');
+    }
+
+    const data = await response.json();
+    const newApplicant = normalizeApplicant(data.applicant);
 
     setApplicants((prev) => [newApplicant, ...prev]);
     setCurrentStudentId(newApplicant.id);
     return newApplicant;
   }
 
-  function updateDocumentStatus(applicantId, docType, status) {
-    setApplicants((prev) =>
-      prev.map((applicant) =>
-        applicant.id === applicantId
-          ? {
-              ...applicant,
-              documents: {
-                ...applicant.documents,
-                [docType]: status
-              }
-            }
-          : applicant
-      )
-    );
+  async function updateDocumentStatus(applicantId, docType, status) {
+    const response = await fetch(`/api/applicants/${applicantId}/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docType, status })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update document status');
+    }
+
+    const data = await response.json();
+    const updatedApplicant = normalizeApplicant(data.applicant);
+
+    setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
+    return updatedApplicant;
   }
 
-  function setApplicantStatus(applicantId, status) {
+  async function setApplicantStatus(applicantId, status) {
     if (!APP_STATUSES.includes(status)) return;
-    setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? { ...applicant, status } : applicant)));
+    const response = await fetch(`/api/applicants/${applicantId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update applicant status');
+    }
+
+    const data = await response.json();
+    const updatedApplicant = normalizeApplicant(data.applicant);
+
+    setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
 
     const target = applicants.find((applicant) => applicant.id === applicantId);
     const message = {
       at: new Date().toISOString(),
       applicantId,
-      to: target?.email || 'unknown@email.com',
+      to: target?.email || updatedApplicant.email || 'unknown@email.com',
       subject: `USCE Application Status Update: ${status}`,
-      body: `Hello ${target?.fullName || 'Applicant'}, your application is now ${status}.`
+      body: `Hello ${target?.fullName || updatedApplicant.fullName || 'Applicant'}, your application is now ${status}.`
     };
 
     setMailLog((prev) => [message, ...prev]);
-
-    fetch(`/api/applicants/${applicantId}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    }).catch(() => {});
+    return updatedApplicant;
   }
 
-  function uploadDocument(applicantId, docType, fileName) {
-    setApplicants((prev) =>
-      prev.map((applicant) =>
-        applicant.id === applicantId
-          ? {
-              ...applicant,
-              documents: {
-                ...applicant.documents,
-                [docType]: 'Verified'
-              },
-              uploads: {
-                ...applicant.uploads,
-                [docType]: {
-                  fileName,
-                  url: `/mock-files/${encodeURIComponent(fileName)}`
-                }
-              }
-            }
-          : applicant
-      )
-    );
+  async function uploadDocument(applicantId, docType, fileName) {
+    const response = await fetch(`/api/applicants/${applicantId}/documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        docType,
+        status: 'Verified',
+        upload: {
+          fileName,
+          url: null
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload document metadata');
+    }
+
+    const data = await response.json();
+    const updatedApplicant = normalizeApplicant(data.applicant);
+    setApplicants((prev) => prev.map((applicant) => (applicant.id === applicantId ? updatedApplicant : applicant)));
+    return updatedApplicant;
   }
 
   const value = {

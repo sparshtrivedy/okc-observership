@@ -12,14 +12,31 @@ export default function AdminLogin() {
   const { setAdminAuthenticated } = useApp();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function login() {
-    if (password === 'okcadmin') {
+  async function login() {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+
+      if (!response.ok) {
+        setError('Invalid admin credentials.');
+        return;
+      }
+
       setAdminAuthenticated(true);
       navigate('/admin');
-      return;
+    } catch {
+      setError('Unable to sign in right now. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setError('Invalid password. Try: okcadmin');
   }
 
   return (
@@ -37,7 +54,9 @@ export default function AdminLogin() {
             <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
-          <Button onClick={login}>Sign In</Button>
+          <Button onClick={login} disabled={loading || !password}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </Button>
         </CardContent>
       </Card>
     </div>

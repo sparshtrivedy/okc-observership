@@ -144,12 +144,18 @@ export default function ApplyPage() {
     }));
   }
 
-  function handleSubmit() {
-    const applicant = addApplicant(form);
-    Object.entries(files).forEach(([docType, file]) => {
-      if (file) uploadDocument(applicant.id, docType, file.name);
-    });
-    navigate('/student');
+  async function handleSubmit() {
+    try {
+      const applicant = await addApplicant(form);
+      const uploads = Object.entries(files)
+        .filter(([, file]) => Boolean(file))
+        .map(([docType, file]) => uploadDocument(applicant.id, docType, file.name));
+
+      await Promise.all(uploads);
+      navigate('/student');
+    } catch {
+      // Keep UX minimal for now; submit button remains enabled for retry.
+    }
   }
 
   return (

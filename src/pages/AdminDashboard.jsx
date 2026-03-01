@@ -164,18 +164,25 @@ export default function AdminDashboard() {
                   <p className="text-slate-500">No uploaded files yet.</p>
                 ) : (
                   Object.entries(selected.uploads || {}).map(([type, file]) => (
-                    <a
-                      key={type}
-                      className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 hover:bg-slate-50"
-                      href={file.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span>{type}</span>
-                      <span className="flex items-center gap-1 text-xs text-clinical">
-                        Open PDF <ExternalLink className="h-3.5 w-3.5" />
-                      </span>
-                    </a>
+                    file?.url ? (
+                      <a
+                        key={type}
+                        className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 hover:bg-slate-50"
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span>{type}</span>
+                        <span className="flex items-center gap-1 text-xs text-clinical">
+                          Open PDF <ExternalLink className="h-3.5 w-3.5" />
+                        </span>
+                      </a>
+                    ) : (
+                      <div key={type} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                        <span>{type}</span>
+                        <span className="text-xs text-slate-500">{file?.fileName || 'Uploaded'}</span>
+                      </div>
+                    )
                   ))
                 )}
               </div>
@@ -201,7 +208,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-clinical" /> Mock Email Notifications
+                <Mail className="h-4 w-4 text-clinical" /> Email Notifications
               </CardTitle>
             </CardHeader>
             <CardContent>
