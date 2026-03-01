@@ -111,13 +111,51 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <p>
+                <span className="font-semibold text-slate-800">Phone:</span> {selected.phone || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Birthdate:</span> {selected.birthDate || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Country of Birth:</span> {selected.countryOfBirth || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Gender:</span> {selected.gender || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Passport Issuing Country:</span> {selected.passportIssuingCountry || 'N/A'}
+              </p>
+              <p>
                 <span className="font-semibold text-slate-800">Medical School:</span> {selected.medicalSchool}
               </p>
               <p>
-                <span className="font-semibold text-slate-800">USMLE:</span> Step 1 {selected.step1Score} / Step 2 {selected.step2Score}
+                <span className="font-semibold text-slate-800">Medical School Country:</span> {selected.medicalSchoolCountry || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Academic Status:</span> {selected.academicStatus || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">USMLE:</span> Step 1 {selected.step1Score} / Step 2{' '}
+                {selected.step2Score ?? 'N/A'} / Step 3 {selected.step3Score ?? 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">US Status:</span> {selected.usStatus}
               </p>
               <p>
                 <span className="font-semibold text-slate-800">Preferred Months:</span> {selected.preferredMonths.join(', ')}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Opportunity Type(s):</span>{' '}
+                {selected.opportunityTypes?.length ? selected.opportunityTypes.join(', ') : 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Set-up Preference:</span> {selected.setupPreference}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Specialty Preference:</span> {selected.specialtyPreference || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Accommodation Needed:</span> {selected.accommodationNeeded}
               </p>
 
               <div className="space-y-2">

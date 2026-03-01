@@ -10,17 +10,39 @@ function normalizeApplicant(applicant) {
     return acc;
   }, {});
 
+  const nameParts = String(applicant.fullName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const firstName = applicant.firstName || nameParts[0] || '';
+  const lastName = applicant.lastName || nameParts.slice(1).join(' ') || '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || applicant.fullName || '';
+
   return {
     id: applicant.id,
-    fullName: applicant.fullName,
+    firstName,
+    lastName,
+    fullName,
     email: applicant.email,
     country: applicant.country,
     phone: applicant.phone || '',
+    birthDate: applicant.birthDate || '',
+    countryOfBirth: applicant.countryOfBirth || '',
+    gender: applicant.gender || '',
+    passportIssuingCountry: applicant.passportIssuingCountry || '',
+    usStatus: applicant.usStatus || 'None',
     medicalSchool: applicant.medicalSchool,
+    medicalSchoolCountry: applicant.medicalSchoolCountry || '',
+    academicStatus: applicant.academicStatus || '',
     graduationYear: Number(applicant.graduationYear),
-    step1Score: Number(applicant.step1Score),
-    step2Score: Number(applicant.step2Score),
+    step1Score: applicant.step1Score === 'Fail' ? 'Fail' : 'Pass',
+    step2Score: applicant.step2Score === '' || applicant.step2Score == null ? null : Number(applicant.step2Score),
+    step3Score: applicant.step3Score === '' || applicant.step3Score == null ? null : Number(applicant.step3Score),
     preferredMonths: applicant.preferredMonths || [],
+    opportunityTypes: applicant.opportunityTypes || [],
+    setupPreference: applicant.setupPreference || 'Clinic',
+    specialtyPreference: applicant.specialtyPreference || '',
+    accommodationNeeded: applicant.accommodationNeeded || 'No',
     status: APP_STATUSES.includes(applicant.status) ? applicant.status : 'Submitted',
     visaConfirmed: Boolean(applicant.visaConfirmed),
     travelConfirmed: Boolean(applicant.travelConfirmed),
