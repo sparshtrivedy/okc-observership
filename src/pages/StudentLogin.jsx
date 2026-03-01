@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserRound } from 'lucide-react';
+import { Eye, EyeOff, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -12,6 +12,7 @@ export default function StudentLogin() {
   const { studentLogin } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +46,22 @@ export default function StudentLogin() {
           </div>
           <div className="space-y-1.5">
             <Label>Password</Label>
-            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                className="pr-10"
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 hover:text-slate-700"
+              >
+                {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
           <Button onClick={login} disabled={loading || !email || !password}>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import GatekeeperModal from '../components/forms/GatekeeperModal';
 import DocumentDropzone from '../components/forms/DocumentDropzone';
 import { useApp } from '../context/AppContext';
@@ -36,6 +37,8 @@ export default function ApplyPage() {
   const [currentStep, setCurrentStep] = useState('step1');
   const [files, setFiles] = useState({});
   const [submitError, setSubmitError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [monthRangeStart, setMonthRangeStart] = useState(null);
   const [form, setForm] = useState({
     firstName: '',
@@ -202,18 +205,44 @@ export default function ApplyPage() {
                 onChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
               />
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="Create Password"
-                  type="password"
-                  value={form.password}
-                  onChange={(value) => setForm((prev) => ({ ...prev, password: value }))}
-                />
-                <Field
-                  label="Confirm Password"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={(value) => setForm((prev) => ({ ...prev, confirmPassword: value }))}
-                />
+                <div className="space-y-1.5">
+                  <Label>Create Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      className="pr-10"
+                      onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 hover:text-slate-700"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={form.confirmPassword}
+                      className="pr-10"
+                      onChange={(event) => setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 hover:text-slate-700"
+                    >
+                      {showConfirmPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
               {form.password && form.password.length < 8 ? (
                 <p className="text-xs text-red-600">Password must be at least 8 characters.</p>
