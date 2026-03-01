@@ -2,7 +2,15 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 
 export function Card({ className, ...props }) {
-  return <div className={cn('rounded-2xl border border-slate-200 bg-white/95 shadow-sm', className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-slate-200 bg-white/95 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md',
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
 export function CardHeader({ className, ...props }) {

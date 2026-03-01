@@ -11,7 +11,7 @@ export default function AppShell({ children }) {
           Strictly In-Person. We do not provide B1/B2 Visa Sponsorship at this time.
         </div>
       </div>
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur transition-shadow duration-300">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="rounded-lg bg-blue-600 p-2 text-white">
@@ -30,7 +30,7 @@ export default function AppShell({ children }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+      <main className="page-enter mx-auto max-w-6xl px-6 py-8">{children}</main>
     </div>
   );
 }
@@ -41,7 +41,7 @@ function NavItem({ to, children }) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'rounded-md px-3 py-2 transition',
+          'rounded-md px-3 py-2 transition-all duration-200 ease-out',
           isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-blue-100 hover:text-blue-600'
         )
       }
