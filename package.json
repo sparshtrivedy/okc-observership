@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "server": "node --env-file=.env server/index.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
-    "db:init": "node --env-file=.env server/db/runDbInitSql.js"
+    "db:init": "node --env-file=.env server/db/runDbInitSql.js",
+    "admin:seed": "node --env-file=.env server/db/seedAdminFromEnv.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

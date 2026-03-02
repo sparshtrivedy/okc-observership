@@ -12,7 +12,7 @@ Full-stack scaffold for a clinical rotation portal in Oklahoma City.
 - `/apply` Visa/travel-gated multi-step application
 - `/student/login` Student login
 - `/student` Student dashboard (status timeline + document vault, protected)
-- `/admin/login` Admin login (`okcadmin`)
+- `/admin/login` Admin login (env-configured bootstrap admin)
 - `/admin` Protected admin dashboard (filters, detail side-panel, status controls)
 
 ## Run
@@ -38,10 +38,14 @@ Frontend runs at `http://localhost:5173` and backend at `http://localhost:4000`.
 
 1. Add `.env` with:
    - `DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<db>`
-   - `JWT_SECRET=<long-random-secret>`
+   - `JWT_SECRET=<long-random-secret-from-jwt.io>`
+   - `ADMIN_BOOTSTRAP_EMAIL=<admin-login-id>`
+   - `ADMIN_BOOTSTRAP_PASSWORD=<strong-password>`
 2. Apply one-shot schema SQL:
    - `npm run db:init`
-3. Start app:
+3. Seed/update admin user from env and remove old admin accounts:
+   - `npm run admin:seed`
+4. Start app:
    - `npm run dev:full`
 
 ### Notes
@@ -51,6 +55,4 @@ Frontend runs at `http://localhost:5173` and backend at `http://localhost:4000`.
    - Passwords are hashed with `bcrypt` (includes per-password salt).
    - A `users` row is created with `role='student'` and linked to `applicants.user_id`.
    - A JWT is issued for the student session.
-- On backend startup, a bootstrap admin user is created in `users` if none exists:
-   - Email/Login ID: `admin` (or set `ADMIN_BOOTSTRAP_EMAIL` in `.env`)
-   - Password: `okcadmin` (or set `ADMIN_BOOTSTRAP_PASSWORD` in `.env`)
+- On backend startup, the configured bootstrap admin is upserted from `.env`.
