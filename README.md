@@ -43,8 +43,10 @@ Frontend runs at `http://localhost:5173` and backend at `http://localhost:4000`.
    - `ADMIN_BOOTSTRAP_PASSWORD=<strong-password>`
 2. Apply one-shot schema SQL:
    - `npm run db:init`
-3. Seed/update admin user from env and remove old admin accounts:
+3. Seed/update bootstrap admin user from env (keeps existing admins):
    - `npm run admin:seed`
+   - Optional one-time cleanup of other admin accounts:
+     - `npm run admin:seed -- --prune-other-admins`
 4. Start app:
    - `npm run dev:full`
 

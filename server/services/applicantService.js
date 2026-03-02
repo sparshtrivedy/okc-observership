@@ -163,7 +163,7 @@ export async function updateApplicantStatus(applicantId, status, changedByUserId
   return mapApplicantRow(updated.rows[0]);
 }
 
-export async function updateApplicantDocument(applicantId, docType, { status, upload } = {}) {
+export async function updateApplicantDocument(applicantId, docType, { status, upload, allowOverwrite = true } = {}) {
   const existing = await db.query('SELECT * FROM applicants WHERE id = $1', [applicantId]);
   if (existing.rowCount === 0) return null;
 
@@ -176,6 +176,10 @@ export async function updateApplicantDocument(applicantId, docType, { status, up
   }
 
   if (upload && upload.fileName) {
+    if (!allowOverwrite && uploads[docType]?.fileName) {
+      throw new Error('document already submitted');
+    }
+
     uploads[docType] = {
       fileName: upload.fileName,
       url: upload.url ?? null

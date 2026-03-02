@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { createApplicant, listApplicants, updateApplicantDocument, updateApplicantStatus } from '../services/applicantService.js';
 import { signStudentToken } from '../auth/token.js';
+import { requireAdminAuth } from '../middleware/requireAdminAuth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = Router();
 
-router.get('/', async (_req, res) => {
+router.get('/', requireAdminAuth, async (_req, res) => {
   try {
     const applicants = await listApplicants();
     res.json({ applicants });
@@ -41,7 +43,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.post('/:applicantId/status', async (req, res) => {
+router.post('/:applicantId/status', requireAdminAuth, async (req, res) => {
   const { applicantId } = req.params;
   const { status } = req.body;
 
@@ -51,7 +53,7 @@ router.post('/:applicantId/status', async (req, res) => {
   }
 
   try {
-    const updated = await updateApplicantStatus(applicantId, status, null);
+    const updated = await updateApplicantStatus(applicantId, status, req.auth.userId);
     if (!updated) {
       res.status(404).json({ error: 'applicant not found' });
       return;
@@ -63,7 +65,7 @@ router.post('/:applicantId/status', async (req, res) => {
   }
 });
 
-router.post('/:applicantId/documents', async (req, res) => {
+router.post('/:applicantId/documents', requireAuth, async (req, res) => {
   const { applicantId } = req.params;
   const { docType, status, upload } = req.body || {};
 
@@ -73,7 +75,25 @@ router.post('/:applicantId/documents', async (req, res) => {
   }
 
   try {
-    const updated = await updateApplicantDocument(applicantId, docType, { status, upload });
+    let payload = { status, upload };
+
+    if (req.auth.role === 'student') {
+      if (req.auth.applicantId !== applicantId) {
+        res.status(403).json({ error: 'students can only update their own documents' });
+        return;
+      }
+
+      payload = {
+        upload,
+        status: null,
+        allowOverwrite: false
+      };
+    } else if (req.auth.role !== 'admin') {
+      res.status(403).json({ error: 'unauthorized role' });
+      return;
+    }
+
+    const updated = await updateApplicantDocument(applicantId, docType, payload);
     if (!updated) {
       res.status(404).json({ error: 'applicant not found' });
       return;
@@ -81,6 +101,11 @@ router.post('/:applicantId/documents', async (req, res) => {
 
     res.json({ applicant: updated });
   } catch (error) {
+    if (String(error.message).toLowerCase().includes('already submitted')) {
+      res.status(409).json({ error: 'document already submitted and cannot be changed' });
+      return;
+    }
+
     res.status(500).json({ error: 'failed to update applicant documents' });
   }
 });

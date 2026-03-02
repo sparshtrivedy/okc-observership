@@ -46,9 +46,9 @@ export async function ensureBootstrapAdmin() {
   console.log(`Bootstrapped admin user: ${seeded.email}`);
 }
 
-export async function verifyAdminPassword(password, email = DEFAULT_ADMIN_EMAIL) {
-  if (!email) return null;
-  const result = await db.query('SELECT id, email, password_hash, role FROM users WHERE email = $1 AND role = $2', [email, 'admin']);
+export async function verifyAdminPassword(password, identifier) {
+  if (!identifier) return null;
+  const result = await db.query('SELECT id, email, password_hash, role FROM users WHERE email = $1 AND role = $2', [identifier, 'admin']);
   if (result.rowCount === 0) return null;
 
   const admin = result.rows[0];

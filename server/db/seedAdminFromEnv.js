@@ -4,11 +4,13 @@ import { seedBootstrapAdmin } from '../services/adminService.js';
 
 async function run() {
   try {
-    const seeded = await seedBootstrapAdmin({ removeOtherAdmins: true });
+    const removeOtherAdmins = process.argv.includes('--prune-other-admins');
+    const seeded = await seedBootstrapAdmin({ removeOtherAdmins });
     const admins = await db.query('SELECT id, email, role FROM users WHERE role = $1 ORDER BY id', ['admin']);
 
     console.log('Admin seed complete.');
     console.log(`Active admin: ${seeded.email}`);
+    console.log(`Pruned other admins: ${removeOtherAdmins ? 'yes' : 'no'}`);
     console.log('Current admin users:', admins.rows);
   } catch (error) {
     console.error('Failed to seed admin from env:', error.message);

@@ -156,10 +156,10 @@ export default function ApplyPage() {
   async function handleSubmit() {
     try {
       setSubmitError('');
-      const applicant = await addApplicant(form);
+      const created = await addApplicant(form);
       const uploads = Object.entries(files)
         .filter(([, file]) => Boolean(file))
-        .map(([docType, file]) => uploadDocument(applicant.id, docType, file.name));
+        .map(([docType, file]) => uploadDocument(created.applicant.id, docType, file.name, created.token));
 
       await Promise.all(uploads);
       navigate('/student');

@@ -9,7 +9,8 @@ import { Button } from '../components/ui/button';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { setAdminAuthenticated } = useApp();
+  const { adminLogin } = useApp();
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -20,21 +21,10 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-
-      if (!response.ok) {
-        setError('Invalid admin credentials.');
-        return;
-      }
-
-      setAdminAuthenticated(true);
+      await adminLogin(identifier, password);
       navigate('/admin');
-    } catch {
-      setError('Unable to sign in right now. Please try again.');
+    } catch (loginError) {
+      setError(loginError.message || 'Unable to sign in right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,6 +40,10 @@ export default function AdminLogin() {
           <CardDescription>Protected route for staff applicant management.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Email / Username</Label>
+            <Input value={identifier} onChange={(event) => setIdentifier(event.target.value)} />
+          </div>
           <div className="space-y-1.5">
             <Label>Password</Label>
             <div className="relative">
@@ -70,7 +64,7 @@ export default function AdminLogin() {
             </div>
           </div>
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
-          <Button onClick={login} disabled={loading || !password}>
+          <Button onClick={login} disabled={loading || !identifier || !password}>
             {loading ? 'Signing In...' : 'Sign In'}
           </Button>
         </CardContent>

@@ -3,6 +3,7 @@ import { APP_STATUSES, DOC_TYPES } from '../types';
 
 const AppContext = createContext(null);
 const STUDENT_TOKEN_KEY = 'studentAuthToken';
+const ADMIN_TOKEN_KEY = 'adminAuthToken';
 
 function normalizeApplicant(applicant) {
   const normalizedDocuments = DOC_TYPES.reduce((acc, doc) => {
@@ -59,7 +60,8 @@ export function AppProvider({ children }) {
   const [currentStudentId, setCurrentStudentId] = useState('');
   const [studentProfile, setStudentProfile] = useState(null);
   const [studentToken, setStudentToken] = useState(() => localStorage.getItem(STUDENT_TOKEN_KEY) || '');
-  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY) || '');
+  const [adminAuthenticated, setAdminAuthenticated] = useState(() => Boolean(localStorage.getItem(ADMIN_TOKEN_KEY)));
   const [mailLog, setMailLog] = useState([]);
 
   function storeStudentToken(token) {
@@ -78,25 +80,48 @@ export function AppProvider({ children }) {
     setStudentProfile(null);
   }
 
+  function storeAdminToken(token) {
+    if (token) {
+      localStorage.setItem(ADMIN_TOKEN_KEY, token);
+      setAdminToken(token);
+      setAdminAuthenticated(true);
+      return;
+    }
+
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    setAdminToken('');
+    setAdminAuthenticated(false);
+  }
+
+  function clearAdminSession() {
+    storeAdminToken('');
+    setApplicants((prev) => prev.filter((applicant) => applicant.id === studentProfile?.id));
+  }
+
   useEffect(() => {
     async function loadApplicants() {
+      if (!adminToken) return;
+
       try {
-        const response = await fetch('/api/applicants');
+        const response = await fetch('/api/applicants', {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        });
         if (!response.ok) throw new Error('API unavailable');
         const data = await response.json();
         if (Array.isArray(data?.applicants)) {
           const normalized = data.applicants.map(normalizeApplicant);
           setApplicants(normalized);
-          setCurrentStudentId(normalized[0]?.id || '');
+          setCurrentStudentId((currentId) => currentId || normalized[0]?.id || '');
         }
       } catch {
-        setApplicants([]);
-        setCurrentStudentId('');
+        setApplicants((prev) => prev.filter((applicant) => applicant.id === studentProfile?.id));
       }
     }
 
     loadApplicants();
-  }, []);
+  }, [adminToken, studentProfile?.id]);
 
   useEffect(() => {
     async function loadStudentProfile() {
@@ -130,6 +155,34 @@ export function AppProvider({ children }) {
 
     loadStudentProfile();
   }, [studentToken]);
+
+  useEffect(() => {
+    async function loadAdminProfile() {
+      if (!adminToken) {
+        setAdminAuthenticated(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/admin/me', {
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        });
+
+        if (!response.ok) {
+          clearAdminSession();
+          return;
+        }
+
+        setAdminAuthenticated(true);
+      } catch {
+        clearAdminSession();
+      }
+    }
+
+    loadAdminProfile();
+  }, [adminToken]);
 
   const currentStudent = useMemo(
     () => studentProfile || applicants.find((item) => item.id === currentStudentId) || applicants[0] || null,
@@ -170,7 +223,31 @@ export function AppProvider({ children }) {
       setStudentProfile(newApplicant);
     }
 
-    return newApplicant;
+    return {
+      applicant: newApplicant,
+      token: data?.token || ''
+    };
+  }
+
+  async function adminLogin(identifier, password) {
+    const response = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, email: identifier })
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || 'Invalid admin credentials.');
+    }
+
+    const data = await response.json();
+    storeAdminToken(data.token);
+    return data.admin;
+  }
+
+  function adminLogout() {
+    clearAdminSession();
   }
 
   async function studentLogin(email, password) {
@@ -207,9 +284,14 @@ export function AppProvider({ children }) {
   }
 
   async function updateDocumentStatus(applicantId, docType, status) {
+    if (!adminToken) throw new Error('Admin authentication required');
+
     const response = await fetch(`/api/applicants/${applicantId}/documents`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
       body: JSON.stringify({ docType, status })
     });
 
@@ -229,9 +311,14 @@ export function AppProvider({ children }) {
 
   async function setApplicantStatus(applicantId, status) {
     if (!APP_STATUSES.includes(status)) return;
+    if (!adminToken) throw new Error('Admin authentication required');
+
     const response = await fetch(`/api/applicants/${applicantId}/status`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
       body: JSON.stringify({ status })
     });
 
@@ -260,13 +347,18 @@ export function AppProvider({ children }) {
     return updatedApplicant;
   }
 
-  async function uploadDocument(applicantId, docType, fileName) {
+  async function uploadDocument(applicantId, docType, fileName, authToken) {
+    const activeToken = authToken || studentToken || adminToken;
+    if (!activeToken) throw new Error('Authentication required to upload documents');
+
     const response = await fetch(`/api/applicants/${applicantId}/documents`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`
+      },
       body: JSON.stringify({
         docType,
-        status: 'Verified',
         upload: {
           fileName,
           url: null
@@ -293,13 +385,14 @@ export function AppProvider({ children }) {
     studentAuthenticated: Boolean(studentToken && studentProfile),
     setCurrentStudentId,
     addApplicant,
+    adminLogin,
+    adminLogout,
     studentLogin,
     studentLogout,
     uploadDocument,
     updateDocumentStatus,
     setApplicantStatus,
     adminAuthenticated,
-    setAdminAuthenticated,
     mailLog,
     statuses: APP_STATUSES
   };
