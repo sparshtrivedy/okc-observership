@@ -9,11 +9,13 @@ import { Label, Select } from '../components/ui/form-controls';
 import { Button } from '../components/ui/button';
 
 export default function AdminDashboard() {
-  const { applicants, statuses, setApplicantStatus, mailLog } = useApp();
+  const { applicants, statuses, setApplicantStatus, mailLog, getDocumentDownloadUrl } = useApp();
   const [selectedId, setSelectedId] = useState(applicants[0]?.id || '');
   const [minStepScore, setMinStepScore] = useState('');
   const [graduationYear, setGraduationYear] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [openingDocument, setOpeningDocument] = useState('');
+  const [documentError, setDocumentError] = useState('');
 
   const selected = applicants.find((item) => item.id === selectedId) || applicants[0];
 
@@ -27,6 +29,19 @@ export default function AdminDashboard() {
   }, [applicants, graduationYear, minStepScore, statusFilter]);
 
   const graduationYears = Array.from(new Set(applicants.map((item) => item.graduationYear))).sort((a, b) => b - a);
+
+  async function openDocument(applicantId, docType) {
+    try {
+      setDocumentError('');
+      setOpeningDocument(docType);
+      const downloadUrl = await getDocumentDownloadUrl(applicantId, docType);
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setDocumentError(error.message || 'Failed to open document');
+    } finally {
+      setOpeningDocument('');
+    }
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr,1fr]" data-design-mode="true">
@@ -152,6 +167,32 @@ export default function AdminDashboard() {
                 <span className="font-semibold text-slate-800">Set-up Preference:</span> {selected.setupPreference}
               </p>
               <p>
+                <span className="font-semibold text-slate-800">Prior US Rotation:</span>{' '}
+                {selected.priorUsRotation || selected.intakeAnswers?.priorUsRotation || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Location:</span>{' '}
+                {selected.rotationLocation || selected.intakeAnswers?.rotationLocation || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Duration:</span>{' '}
+                {selected.rotationDuration || selected.intakeAnswers?.rotationDuration || 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Practice Environment:</span>{' '}
+                {selected.practiceEnvironment?.length
+                  ? selected.practiceEnvironment.join(', ')
+                  : selected.intakeAnswers?.practiceEnvironment?.length
+                    ? selected.intakeAnswers.practiceEnvironment.join(', ')
+                    : 'N/A'}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">USMLE Completion:</span>{' '}
+                {selected.usmleCompletion?.step1 || selected.intakeAnswers?.usmleCompletion?.step1
+                  ? `Step 1 ${selected.usmleCompletion?.step1 || selected.intakeAnswers?.usmleCompletion?.step1}, Step 2 ${selected.usmleCompletion?.step2 || selected.intakeAnswers?.usmleCompletion?.step2}, Step 3 ${selected.usmleCompletion?.step3 || selected.intakeAnswers?.usmleCompletion?.step3}`
+                  : 'N/A'}
+              </p>
+              <p>
                 <span className="font-semibold text-slate-800">Specialty Preference:</span> {selected.specialtyPreference || 'N/A'}
               </p>
               <p>
@@ -160,23 +201,23 @@ export default function AdminDashboard() {
 
               <div className="space-y-2">
                 <p className="font-semibold text-slate-800">Uploaded PDFs</p>
+                {documentError ? <p className="text-xs text-red-600">{documentError}</p> : null}
                 {Object.entries(selected.uploads || {}).length === 0 ? (
                   <p className="text-slate-500">No uploaded files yet.</p>
                 ) : (
                   Object.entries(selected.uploads || {}).map(([type, file]) => (
-                    file?.url ? (
-                      <a
+                    file?.key || file?.url ? (
+                      <button
                         key={type}
-                        className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 hover:bg-slate-50"
-                        href={file.url}
-                        target="_blank"
-                        rel="noreferrer"
+                        type="button"
+                        onClick={() => openDocument(selected.id, type)}
+                        className="flex w-full items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-left hover:bg-slate-50"
                       >
                         <span>{type}</span>
                         <span className="flex items-center gap-1 text-xs text-clinical">
-                          Open PDF <ExternalLink className="h-3.5 w-3.5" />
+                          {openingDocument === type ? 'Opening...' : 'Open PDF'} <ExternalLink className="h-3.5 w-3.5" />
                         </span>
-                      </a>
+                      </button>
                     ) : (
                       <div key={type} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
                         <span>{type}</span>

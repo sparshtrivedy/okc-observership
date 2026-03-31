@@ -24,11 +24,27 @@ const monthOptions = [
   'November 2026',
   'December 2026'
 ];
-const opportunityOptions = ['Hands-On Experience', 'Observership', 'Clinical Research'];
-const usStatusOptions = ['Citizen', 'Permanent Resident', 'Temporary Resident', 'None'];
+const opportunityOptions = ['Hands on experience', 'Research publication', 'Research presentation at conference', 'LOR'];
+const usStatusOptions = ['Valid tourist visa', 'Will apply for tourist visa', 'On student visa', 'Permanent resident/US citizen'];
 const setupOptions = ['Clinic', 'Hospital', 'Both'];
 const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
-const academicStatusOptions = ['Currently Attending', 'Graduated', 'Other'];
+const academicStatusOptions = [
+  'Currently in medical school',
+  'Completed medical school',
+  'Pursuing residency training',
+  'Pursuing research in US'
+];
+const priorUsRotationOptions = ['Yes', 'No', 'Once', 'More than once'];
+const practiceEnvironmentOptions = [
+  'Experience with EMR',
+  'Ability to talk to patients',
+  'Ability to review test results',
+  'Opportunity to observe procedures',
+  'Ability to enter notes in EMR',
+  'Opportunity to engage with other residents/medical students',
+  'Participate in didactic discussions'
+];
+const usmleCompletionOptions = ['Completed', 'Not completed'];
 
 export default function ApplyPage() {
   const navigate = useNavigate();
@@ -59,10 +75,17 @@ export default function ApplyPage() {
     step1Score: '',
     step2Score: '',
     step3Score: '',
+    step1Completed: '',
+    step2Completed: '',
+    step3Completed: '',
     usStatus: '',
     preferredMonths: [],
     opportunityTypes: [],
     setupPreference: '',
+    priorUsRotation: '',
+    rotationLocation: '',
+    rotationDuration: '',
+    practiceEnvironment: [],
     specialtyPreference: '',
     accommodationNeeded: '',
     visaConfirmed: true,
@@ -87,12 +110,17 @@ export default function ApplyPage() {
       form.academicStatus &&
       form.graduationYear &&
       form.step1Score &&
-      form.step2Score &&
-      form.step3Score &&
+      form.step1Completed &&
+      form.step2Completed &&
+      form.step3Completed &&
       form.usStatus &&
       form.preferredMonths.length > 0 &&
       form.opportunityTypes.length > 0 &&
       form.setupPreference &&
+      form.priorUsRotation &&
+      form.rotationLocation &&
+      form.rotationDuration &&
+      form.practiceEnvironment.length > 0 &&
       form.specialtyPreference &&
       form.accommodationNeeded,
     [form]
@@ -153,13 +181,22 @@ export default function ApplyPage() {
     }));
   }
 
+  function togglePracticeEnvironment(item) {
+    setForm((prev) => ({
+      ...prev,
+      practiceEnvironment: prev.practiceEnvironment.includes(item)
+        ? prev.practiceEnvironment.filter((entry) => entry !== item)
+        : [...prev.practiceEnvironment, item]
+    }));
+  }
+
   async function handleSubmit() {
     try {
       setSubmitError('');
       const created = await addApplicant(form);
       const uploads = Object.entries(files)
         .filter(([, file]) => Boolean(file))
-        .map(([docType, file]) => uploadDocument(created.applicant.id, docType, file.name, created.token));
+        .map(([docType, file]) => uploadDocument(created.applicant.id, docType, file, created.token));
 
       await Promise.all(uploads);
       navigate('/student');
@@ -290,7 +327,7 @@ export default function ApplyPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Status in the US</Label>
+                <Label>Current Immigration Status</Label>
                 <Select value={form.usStatus} onChange={(event) => setForm((prev) => ({ ...prev, usStatus: event.target.value }))}>
                   <option value="">Select status</option>
                   {usStatusOptions.map((status) => (
@@ -351,17 +388,62 @@ export default function ApplyPage() {
                   </Select>
                 </div>
                 <Field
-                  label="USMLE Step 2"
+                  label="USMLE Step 2 Score (Optional)"
                   type="number"
                   value={form.step2Score}
                   onChange={(value) => setForm((prev) => ({ ...prev, step2Score: value }))}
                 />
                 <Field
-                  label="USMLE Step 3"
+                  label="USMLE Step 3 Score (Optional)"
                   type="number"
                   value={form.step3Score}
                   onChange={(value) => setForm((prev) => ({ ...prev, step3Score: value }))}
                 />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label>Completed Step 1</Label>
+                  <Select
+                    value={form.step1Completed}
+                    onChange={(event) => setForm((prev) => ({ ...prev, step1Completed: event.target.value }))}
+                  >
+                    <option value="">Select option</option>
+                    {usmleCompletionOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Completed Step 2</Label>
+                  <Select
+                    value={form.step2Completed}
+                    onChange={(event) => setForm((prev) => ({ ...prev, step2Completed: event.target.value }))}
+                  >
+                    <option value="">Select option</option>
+                    {usmleCompletionOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Completed Step 3</Label>
+                  <Select
+                    value={form.step3Completed}
+                    onChange={(event) => setForm((prev) => ({ ...prev, step3Completed: event.target.value }))}
+                  >
+                    <option value="">Select option</option>
+                    {usmleCompletionOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
               <Button onClick={() => setCurrentStep('step3')}>Continue</Button>
             </TabsContent>
@@ -420,7 +502,7 @@ export default function ApplyPage() {
               </div>
 
               <div>
-                <Label>Preferred Experience Type(s)</Label>
+                <Label>What is the goal with this rotation?</Label>
                 <p className="mt-1 text-xs text-slate-500">Select all that apply.</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {opportunityOptions.map((opportunity) => (
@@ -442,7 +524,7 @@ export default function ApplyPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Set-up Preference</Label>
+                  <Label>What setting?</Label>
                   <Select
                     value={form.setupPreference}
                     onChange={(event) => setForm((prev) => ({ ...prev, setupPreference: event.target.value }))}
@@ -469,8 +551,56 @@ export default function ApplyPage() {
                 </div>
               </div>
 
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label>Prior US Rotation</Label>
+                  <Select
+                    value={form.priorUsRotation}
+                    onChange={(event) => setForm((prev) => ({ ...prev, priorUsRotation: event.target.value }))}
+                  >
+                    <option value="">Select option</option>
+                    {priorUsRotationOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <Field
+                  label="Location"
+                  value={form.rotationLocation}
+                  onChange={(value) => setForm((prev) => ({ ...prev, rotationLocation: value }))}
+                />
+                <Field
+                  label="Duration"
+                  value={form.rotationDuration}
+                  onChange={(value) => setForm((prev) => ({ ...prev, rotationDuration: value }))}
+                />
+              </div>
+
+              <div>
+                <Label>Practice Environment</Label>
+                <p className="mt-1 text-xs text-slate-500">Select all that apply.</p>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {practiceEnvironmentOptions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                        form.practiceEnvironment.includes(item)
+                          ? 'border-clinical bg-blue-50 text-clinical'
+                          : 'border-slate-300 bg-white text-slate-700'
+                      }`}
+                      onClick={() => togglePracticeEnvironment(item)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <Field
-                label="Specialty Preference"
+                label="Subspecialty Interest"
                 value={form.specialtyPreference}
                 onChange={(value) => setForm((prev) => ({ ...prev, specialtyPreference: value }))}
               />

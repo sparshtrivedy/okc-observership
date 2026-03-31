@@ -1,10 +1,28 @@
 import { Router } from 'express';
-import { createApplicant, listApplicants, updateApplicantDocument, updateApplicantStatus } from '../services/applicantService.js';
+import {
+  createApplicant,
+  getApplicantById,
+  listApplicants,
+  updateApplicantDocument,
+  updateApplicantStatus
+} from '../services/applicantService.js';
 import { signStudentToken } from '../auth/token.js';
 import { requireAdminAuth } from '../middleware/requireAdminAuth.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import {
+  buildApplicantDocumentKey,
+  createDocumentDownloadUrl,
+  createDocumentUploadUrl,
+  isS3Configured
+} from '../services/s3Service.js';
 
 const router = Router();
+
+function hasApplicantAccess(req, applicantId) {
+  if (req.auth.role === 'admin') return true;
+  if (req.auth.role === 'student') return req.auth.applicantId === applicantId;
+  return false;
+}
 
 router.get('/', requireAdminAuth, async (_req, res) => {
   try {
@@ -107,6 +125,83 @@ router.post('/:applicantId/documents', requireAuth, async (req, res) => {
     }
 
     res.status(500).json({ error: 'failed to update applicant documents' });
+  }
+});
+
+router.post('/:applicantId/documents/presign-upload', requireAuth, async (req, res) => {
+  const { applicantId } = req.params;
+  const { docType, fileName, contentType } = req.body || {};
+
+  if (!hasApplicantAccess(req, applicantId)) {
+    res.status(403).json({ error: 'unauthorized' });
+    return;
+  }
+
+  if (!isS3Configured()) {
+    res.status(500).json({ error: 'S3 is not configured on the server' });
+    return;
+  }
+
+  if (!docType || !fileName) {
+    res.status(400).json({ error: 'docType and fileName are required' });
+    return;
+  }
+
+  try {
+    const key = buildApplicantDocumentKey(applicantId, docType, fileName);
+    const uploadUrl = await createDocumentUploadUrl({ key, contentType });
+    res.json({ uploadUrl, key, expiresIn: 120 });
+  } catch {
+    res.status(500).json({ error: 'failed to create upload URL' });
+  }
+});
+
+router.get('/:applicantId/documents/presign-download', requireAuth, async (req, res) => {
+  const { applicantId } = req.params;
+  const docType = req.query.docType;
+
+  if (!hasApplicantAccess(req, applicantId)) {
+    res.status(403).json({ error: 'unauthorized' });
+    return;
+  }
+
+  if (!docType) {
+    res.status(400).json({ error: 'docType is required' });
+    return;
+  }
+
+  try {
+    const applicant = await getApplicantById(applicantId);
+    if (!applicant) {
+      res.status(404).json({ error: 'applicant not found' });
+      return;
+    }
+
+    const upload = applicant.uploads?.[docType];
+    if (!upload) {
+      res.status(404).json({ error: 'document not found' });
+      return;
+    }
+
+    if (upload.url && !upload.key) {
+      res.json({ downloadUrl: upload.url, external: true });
+      return;
+    }
+
+    if (!isS3Configured()) {
+      res.status(500).json({ error: 'S3 is not configured on the server' });
+      return;
+    }
+
+    if (!upload.key) {
+      res.status(404).json({ error: 'document key not found' });
+      return;
+    }
+
+    const downloadUrl = await createDocumentDownloadUrl({ key: upload.key });
+    res.json({ downloadUrl, expiresIn: 300 });
+  } catch {
+    res.status(500).json({ error: 'failed to create download URL' });
   }
 });
 

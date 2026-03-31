@@ -33,7 +33,8 @@ function mapApplicantRow(row) {
     visaConfirmed: row.visa_confirmed,
     travelConfirmed: row.travel_confirmed,
     documents: row.documents || {},
-    uploads: row.uploads || {}
+    uploads: row.uploads || {},
+    intakeAnswers: row.intake_answers || {}
   };
 }
 
@@ -49,6 +50,17 @@ export async function listApplicants() {
 export async function createApplicant(input) {
   const id = input.id || generateApplicantId();
   const client = await dbPool.connect();
+  const intakeAnswers = {
+    priorUsRotation: input.priorUsRotation || '',
+    rotationLocation: input.rotationLocation || '',
+    rotationDuration: input.rotationDuration || '',
+    practiceEnvironment: input.practiceEnvironment || [],
+    usmleCompletion: {
+      step1: input.step1Completed || '',
+      step2: input.step2Completed || '',
+      step3: input.step3Completed || ''
+    }
+  };
 
   try {
     await client.query('BEGIN');
@@ -74,14 +86,14 @@ export async function createApplicant(input) {
           country, passport_issuing_country, us_status, medical_school, medical_school_country,
           academic_status, graduation_year, step1_result, step2_score, step3_score,
           preferred_months, opportunity_types, setup_preference, specialty_preference,
-          accommodation_needed, status, visa_confirmed, travel_confirmed, user_id, documents, uploads
+          accommodation_needed, status, visa_confirmed, travel_confirmed, user_id, documents, uploads, intake_answers
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13,
           $14, $15, $16, $17, $18,
           $19, $20, $21, $22,
-          $23, $24, $25, $26, $27, $28::jsonb, $29::jsonb
+          $23, $24, $25, $26, $27, $28::jsonb, $29::jsonb, $30::jsonb
         )
         RETURNING *
       `,
@@ -121,7 +133,8 @@ export async function createApplicant(input) {
             'Immunization Records': 'Action Required'
           }
         ),
-        JSON.stringify(input.uploads || {})
+        JSON.stringify(input.uploads || {}),
+        JSON.stringify(input.intakeAnswers || intakeAnswers)
       ]
     );
 
@@ -137,6 +150,12 @@ export async function createApplicant(input) {
 
 export async function getApplicantByUserId(userId) {
   const result = await db.query('SELECT * FROM applicants WHERE user_id = $1 LIMIT 1', [userId]);
+  if (result.rowCount === 0) return null;
+  return mapApplicantRow(result.rows[0]);
+}
+
+export async function getApplicantById(applicantId) {
+  const result = await db.query('SELECT * FROM applicants WHERE id = $1 LIMIT 1', [applicantId]);
   if (result.rowCount === 0) return null;
   return mapApplicantRow(result.rows[0]);
 }
@@ -182,7 +201,10 @@ export async function updateApplicantDocument(applicantId, docType, { status, up
 
     uploads[docType] = {
       fileName: upload.fileName,
-      url: upload.url ?? null
+      url: upload.url ?? null,
+      key: upload.key ?? null,
+      contentType: upload.contentType ?? null,
+      uploadedAt: new Date().toISOString()
     };
   }
 

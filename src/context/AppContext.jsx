@@ -51,7 +51,13 @@ function normalizeApplicant(applicant) {
     visaConfirmed: Boolean(applicant.visaConfirmed),
     travelConfirmed: Boolean(applicant.travelConfirmed),
     documents: normalizedDocuments,
-    uploads: applicant.uploads || {}
+    uploads: applicant.uploads || {},
+    intakeAnswers: applicant.intakeAnswers || {},
+    priorUsRotation: applicant.priorUsRotation || applicant.intakeAnswers?.priorUsRotation || '',
+    rotationLocation: applicant.rotationLocation || applicant.intakeAnswers?.rotationLocation || '',
+    rotationDuration: applicant.rotationDuration || applicant.intakeAnswers?.rotationDuration || '',
+    practiceEnvironment: applicant.practiceEnvironment || applicant.intakeAnswers?.practiceEnvironment || [],
+    usmleCompletion: applicant.usmleCompletion || applicant.intakeAnswers?.usmleCompletion || { step1: '', step2: '', step3: '' }
   };
 }
 
@@ -347,9 +353,45 @@ export function AppProvider({ children }) {
     return updatedApplicant;
   }
 
-  async function uploadDocument(applicantId, docType, fileName, authToken) {
+  async function uploadDocument(applicantId, docType, file, authToken) {
     const activeToken = authToken || studentToken || adminToken;
     if (!activeToken) throw new Error('Authentication required to upload documents');
+    if (!file) throw new Error('No file selected');
+
+    const uploadName = file.name || 'document.pdf';
+    const uploadType = file.type || 'application/pdf';
+
+    const presignResponse = await fetch(`/api/applicants/${applicantId}/documents/presign-upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`
+      },
+      body: JSON.stringify({
+        docType,
+        fileName: uploadName,
+        contentType: uploadType
+      })
+    });
+
+    if (!presignResponse.ok) {
+      const body = await presignResponse.json().catch(() => null);
+      throw new Error(body?.error || 'Failed to create secure upload URL');
+    }
+
+    const { uploadUrl, key } = await presignResponse.json();
+
+    const s3UploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': uploadType
+      },
+      body: file
+    });
+
+    if (!s3UploadResponse.ok) {
+      throw new Error('Failed to upload document to storage');
+    }
 
     const response = await fetch(`/api/applicants/${applicantId}/documents`, {
       method: 'POST',
@@ -360,7 +402,9 @@ export function AppProvider({ children }) {
       body: JSON.stringify({
         docType,
         upload: {
-          fileName,
+          fileName: uploadName,
+          contentType: uploadType,
+          key,
           url: null
         }
       })
@@ -379,6 +423,28 @@ export function AppProvider({ children }) {
     return updatedApplicant;
   }
 
+  async function getDocumentDownloadUrl(applicantId, docType, authToken) {
+    const activeToken = authToken || studentToken || adminToken;
+    if (!activeToken) throw new Error('Authentication required to access documents');
+
+    const response = await fetch(
+      `/api/applicants/${applicantId}/documents/presign-download?docType=${encodeURIComponent(docType)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${activeToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || 'Failed to get document link');
+    }
+
+    const data = await response.json();
+    return data.downloadUrl;
+  }
+
   const value = {
     applicants,
     currentStudent,
@@ -390,6 +456,7 @@ export function AppProvider({ children }) {
     studentLogin,
     studentLogout,
     uploadDocument,
+    getDocumentDownloadUrl,
     updateDocumentStatus,
     setApplicantStatus,
     adminAuthenticated,

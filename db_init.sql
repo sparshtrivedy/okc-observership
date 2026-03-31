@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS applicants (
   user_id BIGINT,
   documents JSONB NOT NULL DEFAULT '{}'::jsonb,
   uploads JSONB NOT NULL DEFAULT '{}'::jsonb,
+  intake_answers JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE applicants ADD COLUMN IF NOT EXISTS user_id BIGINT;
+ALTER TABLE applicants ADD COLUMN IF NOT EXISTS intake_answers JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 DO $$
 BEGIN
