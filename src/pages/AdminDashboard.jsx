@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -9,7 +10,8 @@ import { Label, Select } from '../components/ui/form-controls';
 import { Button } from '../components/ui/button';
 
 export default function AdminDashboard() {
-  const { applicants, statuses, setApplicantStatus, mailLog, getDocumentDownloadUrl } = useApp();
+  const navigate = useNavigate();
+  const { applicants, statuses, setApplicantStatus, mailLog, getDocumentDownloadUrl, adminLogout } = useApp();
   const [selectedId, setSelectedId] = useState(applicants[0]?.id || '');
   const [minStepScore, setMinStepScore] = useState('');
   const [graduationYear, setGraduationYear] = useState('all');
@@ -43,11 +45,19 @@ export default function AdminDashboard() {
     }
   }
 
+  function handleAdminSignOut() {
+    adminLogout();
+    navigate('/admin/login');
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr,1fr]" data-design-mode="true">
       <Card>
         <CardHeader>
-          <CardTitle>Applicant Management</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Applicant Management</CardTitle>
+            <Button variant="outline" onClick={handleAdminSignOut}>Sign Out</Button>
+          </div>
           <CardDescription>Filter by Step score, graduation year, or status.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

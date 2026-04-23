@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -8,7 +9,30 @@ import { Button } from '../components/ui/button';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const { currentStudent, studentLogout } = useApp();
+  const { currentStudent, studentLogout, refreshStudentProfile } = useApp();
+
+  useEffect(() => {
+    refreshStudentProfile();
+
+    const intervalId = window.setInterval(() => {
+      refreshStudentProfile();
+    }, 15000);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshStudentProfile();
+      }
+    }
+
+    window.addEventListener('focus', refreshStudentProfile);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshStudentProfile);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshStudentProfile]);
 
   function handleLogout() {
     studentLogout();

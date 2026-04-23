@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label, Select } from '../components/ui/form-controls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { DOC_TYPES } from '../types';
 
 const monthOptions = [
   'January 2026',
@@ -45,6 +46,138 @@ const practiceEnvironmentOptions = [
   'Participate in didactic discussions'
 ];
 const usmleCompletionOptions = ['Completed', 'Not completed'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\+?[0-9()\-\s]{7,20}$/;
+const REQUIRED_DOCUMENTS = DOC_TYPES;
+const ALLOWED_FILE_TYPES = ['application/pdf'];
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+
+function isBlank(value) {
+  return typeof value !== 'string' || value.trim() === '';
+}
+
+function isValidDateString(value) {
+  if (isBlank(value)) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
+}
+
+function validateApplyForm(form) {
+  const errors = {};
+  const currentYear = new Date().getFullYear();
+
+  const requiredFields = {
+    firstName: 'First name is required.',
+    lastName: 'Last name is required.',
+    email: 'Email is required.',
+    password: 'Password is required.',
+    confirmPassword: 'Please confirm your password.',
+    phone: 'Phone number is required.',
+    birthDate: 'Birth date is required.',
+    countryOfBirth: 'Country of birth is required.',
+    gender: 'Gender is required.',
+    country: 'Country is required.',
+    passportIssuingCountry: 'Passport issuing country is required.',
+    medicalSchool: 'Medical school is required.',
+    medicalSchoolCountry: 'Medical school country is required.',
+    academicStatus: 'Academic status is required.',
+    graduationYear: 'Graduation year is required.',
+    step1Score: 'USMLE Step 1 result is required.',
+    step1Completed: 'Completed Step 1 selection is required.',
+    step2Completed: 'Completed Step 2 selection is required.',
+    step3Completed: 'Completed Step 3 selection is required.',
+    usStatus: 'Immigration status is required.',
+    setupPreference: 'Setting preference is required.',
+    priorUsRotation: 'Prior US rotation is required.',
+    rotationLocation: 'Location is required.',
+    rotationDuration: 'Duration is required.',
+    specialtyPreference: 'Subspecialty interest is required.',
+    accommodationNeeded: 'Accommodation selection is required.'
+  };
+
+  for (const [field, message] of Object.entries(requiredFields)) {
+    if (isBlank(form[field])) {
+      errors[field] = message;
+    }
+  }
+
+  if (!isBlank(form.email) && !EMAIL_REGEX.test(form.email.trim())) {
+    errors.email = 'Enter a valid email address.';
+  }
+
+  if (!isBlank(form.password) && form.password.length < 8) {
+    errors.password = 'Password must be at least 8 characters.';
+  }
+
+  if (!isBlank(form.confirmPassword) && form.password !== form.confirmPassword) {
+    errors.confirmPassword = 'Password confirmation does not match.';
+  }
+
+  if (!isBlank(form.phone) && !PHONE_REGEX.test(form.phone.trim())) {
+    errors.phone = 'Enter a valid phone number.';
+  }
+
+  if (!isBlank(form.birthDate) && !isValidDateString(form.birthDate)) {
+    errors.birthDate = 'Enter a valid birth date.';
+  }
+
+  if (!isBlank(form.graduationYear)) {
+    const graduationYear = Number(form.graduationYear);
+    if (!Number.isFinite(graduationYear) || graduationYear < 1950 || graduationYear > currentYear + 10) {
+      errors.graduationYear = `Graduation year must be between 1950 and ${currentYear + 10}.`;
+    }
+  }
+
+  if (form.step2Score !== '' && form.step2Score != null) {
+    const step2 = Number(form.step2Score);
+    if (!Number.isFinite(step2) || step2 < 0 || step2 > 300) {
+      errors.step2Score = 'Step 2 score must be between 0 and 300.';
+    }
+  }
+
+  if (form.step3Score !== '' && form.step3Score != null) {
+    const step3 = Number(form.step3Score);
+    if (!Number.isFinite(step3) || step3 < 0 || step3 > 300) {
+      errors.step3Score = 'Step 3 score must be between 0 and 300.';
+    }
+  }
+
+  if (!Array.isArray(form.preferredMonths) || form.preferredMonths.length === 0) {
+    errors.preferredMonths = 'Select at least one preferred month.';
+  }
+
+  if (!Array.isArray(form.opportunityTypes) || form.opportunityTypes.length === 0) {
+    errors.opportunityTypes = 'Select at least one rotation goal.';
+  }
+
+  if (!Array.isArray(form.practiceEnvironment) || form.practiceEnvironment.length === 0) {
+    errors.practiceEnvironment = 'Select at least one practice environment option.';
+  }
+
+  return errors;
+}
+
+function validateDocumentFile(file) {
+  if (!file) return 'File is required.';
+
+  const fileName = String(file.name || '').toLowerCase();
+  const fileType = String(file.type || '').toLowerCase();
+  const fileSize = Number(file.size || 0);
+
+  if (!fileName.endsWith('.pdf')) {
+    return 'Only PDF files are allowed.';
+  }
+
+  if (!ALLOWED_FILE_TYPES.includes(fileType)) {
+    return 'Only PDF files are allowed.';
+  }
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_UPLOAD_SIZE_BYTES) {
+    return 'File must be between 1 byte and 5 MB.';
+  }
+
+  return '';
+}
 
 export default function ApplyPage() {
   const navigate = useNavigate();
@@ -52,7 +185,9 @@ export default function ApplyPage() {
   const [eligible, setEligible] = useState(false);
   const [currentStep, setCurrentStep] = useState('step1');
   const [files, setFiles] = useState({});
+  const [documentErrors, setDocumentErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [monthRangeStart, setMonthRangeStart] = useState(null);
@@ -92,39 +227,50 @@ export default function ApplyPage() {
     travelConfirmed: true
   });
 
-  const canSubmit = useMemo(
-    () =>
-      form.firstName &&
-      form.lastName &&
-      form.email &&
-      form.password &&
-      form.password.length >= 8 &&
-      form.password === form.confirmPassword &&
-      form.phone &&
-      form.birthDate &&
-      form.countryOfBirth &&
-      form.gender &&
-      form.passportIssuingCountry &&
-      form.medicalSchool &&
-      form.medicalSchoolCountry &&
-      form.academicStatus &&
-      form.graduationYear &&
-      form.step1Score &&
-      form.step1Completed &&
-      form.step2Completed &&
-      form.step3Completed &&
-      form.usStatus &&
-      form.preferredMonths.length > 0 &&
-      form.opportunityTypes.length > 0 &&
-      form.setupPreference &&
-      form.priorUsRotation &&
-      form.rotationLocation &&
-      form.rotationDuration &&
-      form.practiceEnvironment.length > 0 &&
-      form.specialtyPreference &&
-      form.accommodationNeeded,
-    [form]
-  );
+  const canSubmit = useMemo(() => {
+    const hasValidForm = Object.keys(validateApplyForm(form)).length === 0;
+    const requiredDocsPresent = REQUIRED_DOCUMENTS.every((docType) => Boolean(files[docType]));
+    const hasDocumentErrors = Object.values(documentErrors).some(Boolean);
+    return hasValidForm && requiredDocsPresent && !hasDocumentErrors;
+  }, [documentErrors, files, form]);
+
+  function updateField(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function handleDocumentSelected(docType, file) {
+    const fileError = validateDocumentFile(file);
+    if (fileError) {
+      setFiles((prev) => {
+        if (!prev[docType]) return prev;
+        const next = { ...prev };
+        delete next[docType];
+        return next;
+      });
+      setDocumentErrors((prev) => ({ ...prev, [docType]: fileError }));
+      return;
+    }
+
+    setFiles((prev) => ({ ...prev, [docType]: file }));
+    setDocumentErrors((prev) => {
+      if (!prev[docType]) return prev;
+      const next = { ...prev };
+      delete next[docType];
+      return next;
+    });
+    setFieldErrors((prev) => {
+      if (!prev.documents) return prev;
+      const next = { ...prev };
+      delete next.documents;
+      return next;
+    });
+  }
 
   const selectedMonthsSet = new Set(form.preferredMonths);
 
@@ -193,6 +339,29 @@ export default function ApplyPage() {
   async function handleSubmit() {
     try {
       setSubmitError('');
+      const errors = validateApplyForm(form);
+
+      const missingDocuments = REQUIRED_DOCUMENTS.filter((docType) => !files[docType]);
+      if (missingDocuments.length > 0) {
+        errors.documents = `Upload required documents: ${missingDocuments.join(', ')}`;
+      }
+
+      const nextDocumentErrors = {};
+      for (const docType of REQUIRED_DOCUMENTS) {
+        if (!files[docType]) continue;
+        const maybeError = validateDocumentFile(files[docType]);
+        if (maybeError) {
+          nextDocumentErrors[docType] = maybeError;
+        }
+      }
+
+      setDocumentErrors(nextDocumentErrors);
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0 || Object.keys(nextDocumentErrors).length > 0) {
+        setSubmitError('Please fix the highlighted fields before submitting.');
+        return;
+      }
+
       const created = await addApplicant(form);
       const uploads = Object.entries(files)
         .filter(([, file]) => Boolean(file))
@@ -227,19 +396,22 @@ export default function ApplyPage() {
                 <Field
                   label="First Name"
                   value={form.firstName}
-                  onChange={(value) => setForm((prev) => ({ ...prev, firstName: value }))}
+                  error={fieldErrors.firstName}
+                  onChange={(value) => updateField('firstName', value)}
                 />
                 <Field
                   label="Last Name"
                   value={form.lastName}
-                  onChange={(value) => setForm((prev) => ({ ...prev, lastName: value }))}
+                  error={fieldErrors.lastName}
+                  onChange={(value) => updateField('lastName', value)}
                 />
               </div>
               <Field
                 label="Email Address"
                 type="email"
                 value={form.email}
-                onChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
+                error={fieldErrors.email}
+                onChange={(value) => updateField('email', value)}
               />
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
@@ -248,8 +420,9 @@ export default function ApplyPage() {
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       value={form.password}
-                      className="pr-10"
-                      onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                      aria-invalid={Boolean(fieldErrors.password)}
+                      className={`pr-10 ${fieldErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                      onChange={(event) => updateField('password', event.target.value)}
                     />
                     <button
                       type="button"
@@ -260,6 +433,7 @@ export default function ApplyPage() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {fieldErrors.password ? <p className="text-xs text-red-600">{fieldErrors.password}</p> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Confirm Password</Label>
@@ -267,8 +441,9 @@ export default function ApplyPage() {
                     <Input
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={form.confirmPassword}
-                      className="pr-10"
-                      onChange={(event) => setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                      aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                      className={`pr-10 ${fieldErrors.confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                      onChange={(event) => updateField('confirmPassword', event.target.value)}
                     />
                     <button
                       type="button"
@@ -279,44 +454,48 @@ export default function ApplyPage() {
                       {showConfirmPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                   </div>
+                  {fieldErrors.confirmPassword ? <p className="text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
                 </div>
               </div>
-              {form.password && form.password.length < 8 ? (
-                <p className="text-xs text-red-600">Password must be at least 8 characters.</p>
-              ) : null}
-              {form.confirmPassword && form.password !== form.confirmPassword ? (
-                <p className="text-xs text-red-600">Password confirmation does not match.</p>
-              ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 <Field
                   label="Phone Number"
                   value={form.phone}
-                  onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+                  error={fieldErrors.phone}
+                  onChange={(value) => updateField('phone', value)}
                 />
                 <Field
                   label="Birthdate"
                   type="date"
                   value={form.birthDate}
-                  onChange={(value) => setForm((prev) => ({ ...prev, birthDate: value }))}
+                  error={fieldErrors.birthDate}
+                  onChange={(value) => updateField('birthDate', value)}
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field
                   label="Country of Birth"
                   value={form.countryOfBirth}
-                  onChange={(value) => setForm((prev) => ({ ...prev, countryOfBirth: value }))}
+                  error={fieldErrors.countryOfBirth}
+                  onChange={(value) => updateField('countryOfBirth', value)}
                 />
-                <Field label="Country" value={form.country} onChange={(value) => setForm((prev) => ({ ...prev, country: value }))} />
+                <Field label="Country" value={form.country} error={fieldErrors.country} onChange={(value) => updateField('country', value)} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field
                   label="Country Issuing Passport"
                   value={form.passportIssuingCountry}
-                  onChange={(value) => setForm((prev) => ({ ...prev, passportIssuingCountry: value }))}
+                  error={fieldErrors.passportIssuingCountry}
+                  onChange={(value) => updateField('passportIssuingCountry', value)}
                 />
                 <div className="space-y-1.5">
                   <Label>Gender</Label>
-                  <Select value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))}>
+                  <Select
+                    value={form.gender}
+                    aria-invalid={Boolean(fieldErrors.gender)}
+                    className={fieldErrors.gender ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('gender', event.target.value)}
+                  >
                     <option value="">Select gender</option>
                     {genderOptions.map((gender) => (
                       <option key={gender} value={gender}>
@@ -324,11 +503,17 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.gender ? <p className="text-xs text-red-600">{fieldErrors.gender}</p> : null}
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Current Immigration Status</Label>
-                <Select value={form.usStatus} onChange={(event) => setForm((prev) => ({ ...prev, usStatus: event.target.value }))}>
+                <Select
+                  value={form.usStatus}
+                  aria-invalid={Boolean(fieldErrors.usStatus)}
+                  className={fieldErrors.usStatus ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                  onChange={(event) => updateField('usStatus', event.target.value)}
+                >
                   <option value="">Select status</option>
                   {usStatusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -336,6 +521,7 @@ export default function ApplyPage() {
                     </option>
                   ))}
                 </Select>
+                {fieldErrors.usStatus ? <p className="text-xs text-red-600">{fieldErrors.usStatus}</p> : null}
               </div>
               <Button onClick={() => setCurrentStep('step2')}>Continue</Button>
             </TabsContent>
@@ -345,12 +531,14 @@ export default function ApplyPage() {
                 <Field
                   label="Medical School"
                   value={form.medicalSchool}
-                  onChange={(value) => setForm((prev) => ({ ...prev, medicalSchool: value }))}
+                  error={fieldErrors.medicalSchool}
+                  onChange={(value) => updateField('medicalSchool', value)}
                 />
                 <Field
                   label="Medical School Country"
                   value={form.medicalSchoolCountry}
-                  onChange={(value) => setForm((prev) => ({ ...prev, medicalSchoolCountry: value }))}
+                  error={fieldErrors.medicalSchoolCountry}
+                  onChange={(value) => updateField('medicalSchoolCountry', value)}
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -358,7 +546,9 @@ export default function ApplyPage() {
                   <Label>Academic Status</Label>
                   <Select
                     value={form.academicStatus}
-                    onChange={(event) => setForm((prev) => ({ ...prev, academicStatus: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.academicStatus)}
+                    className={fieldErrors.academicStatus ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('academicStatus', event.target.value)}
                   >
                     <option value="">Select status</option>
                     {academicStatusOptions.map((status) => (
@@ -367,12 +557,14 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.academicStatus ? <p className="text-xs text-red-600">{fieldErrors.academicStatus}</p> : null}
                 </div>
                 <Field
                   label="Graduation Year"
                   type="number"
                   value={form.graduationYear}
-                  onChange={(value) => setForm((prev) => ({ ...prev, graduationYear: value }))}
+                  error={fieldErrors.graduationYear}
+                  onChange={(value) => updateField('graduationYear', value)}
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -380,24 +572,29 @@ export default function ApplyPage() {
                   <Label>USMLE Step 1 (Pass/Fail)</Label>
                   <Select
                     value={form.step1Score}
-                    onChange={(event) => setForm((prev) => ({ ...prev, step1Score: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.step1Score)}
+                    className={fieldErrors.step1Score ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('step1Score', event.target.value)}
                   >
                     <option value="">Select result</option>
                     <option value="Pass">Pass</option>
                     <option value="Fail">Fail</option>
                   </Select>
+                  {fieldErrors.step1Score ? <p className="text-xs text-red-600">{fieldErrors.step1Score}</p> : null}
                 </div>
                 <Field
                   label="USMLE Step 2 Score (Optional)"
                   type="number"
                   value={form.step2Score}
-                  onChange={(value) => setForm((prev) => ({ ...prev, step2Score: value }))}
+                  error={fieldErrors.step2Score}
+                  onChange={(value) => updateField('step2Score', value)}
                 />
                 <Field
                   label="USMLE Step 3 Score (Optional)"
                   type="number"
                   value={form.step3Score}
-                  onChange={(value) => setForm((prev) => ({ ...prev, step3Score: value }))}
+                  error={fieldErrors.step3Score}
+                  onChange={(value) => updateField('step3Score', value)}
                 />
               </div>
 
@@ -406,7 +603,9 @@ export default function ApplyPage() {
                   <Label>Completed Step 1</Label>
                   <Select
                     value={form.step1Completed}
-                    onChange={(event) => setForm((prev) => ({ ...prev, step1Completed: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.step1Completed)}
+                    className={fieldErrors.step1Completed ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('step1Completed', event.target.value)}
                   >
                     <option value="">Select option</option>
                     {usmleCompletionOptions.map((option) => (
@@ -415,12 +614,15 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.step1Completed ? <p className="text-xs text-red-600">{fieldErrors.step1Completed}</p> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Completed Step 2</Label>
                   <Select
                     value={form.step2Completed}
-                    onChange={(event) => setForm((prev) => ({ ...prev, step2Completed: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.step2Completed)}
+                    className={fieldErrors.step2Completed ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('step2Completed', event.target.value)}
                   >
                     <option value="">Select option</option>
                     {usmleCompletionOptions.map((option) => (
@@ -429,12 +631,15 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.step2Completed ? <p className="text-xs text-red-600">{fieldErrors.step2Completed}</p> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Completed Step 3</Label>
                   <Select
                     value={form.step3Completed}
-                    onChange={(event) => setForm((prev) => ({ ...prev, step3Completed: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.step3Completed)}
+                    className={fieldErrors.step3Completed ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('step3Completed', event.target.value)}
                   >
                     <option value="">Select option</option>
                     {usmleCompletionOptions.map((option) => (
@@ -443,6 +648,7 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.step3Completed ? <p className="text-xs text-red-600">{fieldErrors.step3Completed}</p> : null}
                 </div>
               </div>
               <Button onClick={() => setCurrentStep('step3')}>Continue</Button>
@@ -485,6 +691,7 @@ export default function ApplyPage() {
                     Selected: {form.preferredMonths[0]} to {form.preferredMonths[form.preferredMonths.length - 1]}
                   </p>
                 ) : null}
+                {fieldErrors.preferredMonths ? <p className="mt-2 text-xs text-red-600">{fieldErrors.preferredMonths}</p> : null}
 
                 <div className="mt-2">
                   <Button
@@ -520,6 +727,7 @@ export default function ApplyPage() {
                     </button>
                   ))}
                 </div>
+                {fieldErrors.opportunityTypes ? <p className="mt-2 text-xs text-red-600">{fieldErrors.opportunityTypes}</p> : null}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -527,7 +735,9 @@ export default function ApplyPage() {
                   <Label>What setting?</Label>
                   <Select
                     value={form.setupPreference}
-                    onChange={(event) => setForm((prev) => ({ ...prev, setupPreference: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.setupPreference)}
+                    className={fieldErrors.setupPreference ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('setupPreference', event.target.value)}
                   >
                     <option value="">Select set-up</option>
                     {setupOptions.map((setup) => (
@@ -536,18 +746,22 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.setupPreference ? <p className="text-xs text-red-600">{fieldErrors.setupPreference}</p> : null}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label>Accommodation Needed?</Label>
                   <Select
                     value={form.accommodationNeeded}
-                    onChange={(event) => setForm((prev) => ({ ...prev, accommodationNeeded: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.accommodationNeeded)}
+                    className={fieldErrors.accommodationNeeded ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('accommodationNeeded', event.target.value)}
                   >
                     <option value="">Select option</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </Select>
+                  {fieldErrors.accommodationNeeded ? <p className="text-xs text-red-600">{fieldErrors.accommodationNeeded}</p> : null}
                 </div>
               </div>
 
@@ -556,7 +770,9 @@ export default function ApplyPage() {
                   <Label>Prior US Rotation</Label>
                   <Select
                     value={form.priorUsRotation}
-                    onChange={(event) => setForm((prev) => ({ ...prev, priorUsRotation: event.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.priorUsRotation)}
+                    className={fieldErrors.priorUsRotation ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                    onChange={(event) => updateField('priorUsRotation', event.target.value)}
                   >
                     <option value="">Select option</option>
                     {priorUsRotationOptions.map((option) => (
@@ -565,16 +781,19 @@ export default function ApplyPage() {
                       </option>
                     ))}
                   </Select>
+                  {fieldErrors.priorUsRotation ? <p className="text-xs text-red-600">{fieldErrors.priorUsRotation}</p> : null}
                 </div>
                 <Field
                   label="Location"
                   value={form.rotationLocation}
-                  onChange={(value) => setForm((prev) => ({ ...prev, rotationLocation: value }))}
+                  error={fieldErrors.rotationLocation}
+                  onChange={(value) => updateField('rotationLocation', value)}
                 />
                 <Field
                   label="Duration"
                   value={form.rotationDuration}
-                  onChange={(value) => setForm((prev) => ({ ...prev, rotationDuration: value }))}
+                  error={fieldErrors.rotationDuration}
+                  onChange={(value) => updateField('rotationDuration', value)}
                 />
               </div>
 
@@ -597,29 +816,39 @@ export default function ApplyPage() {
                     </button>
                   ))}
                 </div>
+                {fieldErrors.practiceEnvironment ? <p className="mt-2 text-xs text-red-600">{fieldErrors.practiceEnvironment}</p> : null}
               </div>
 
               <Field
                 label="Subspecialty Interest"
                 value={form.specialtyPreference}
-                onChange={(value) => setForm((prev) => ({ ...prev, specialtyPreference: value }))}
+                error={fieldErrors.specialtyPreference}
+                onChange={(value) => updateField('specialtyPreference', value)}
               />
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <DocumentDropzone label="CV" onFileSelected={(file) => setFiles((prev) => ({ ...prev, CV: file }))} />
-                <DocumentDropzone
-                  label="Passport Bio"
-                  onFileSelected={(file) => setFiles((prev) => ({ ...prev, 'Passport Bio': file }))}
-                />
-                <DocumentDropzone
-                  label="Step Score Report"
-                  onFileSelected={(file) => setFiles((prev) => ({ ...prev, 'Step Score Report': file }))}
-                />
-                <DocumentDropzone
-                  label="Immunization Records"
-                  onFileSelected={(file) => setFiles((prev) => ({ ...prev, 'Immunization Records': file }))}
-                />
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                <Label>Required Documents</Label>
+                <p className="mt-1 text-xs text-slate-600">Upload all documents as PDF files (max 5 MB each).</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700">
+                  {REQUIRED_DOCUMENTS.map((docType) => (
+                    <li key={docType}>{docType}</li>
+                  ))}
+                </ul>
               </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {REQUIRED_DOCUMENTS.map((docType) => (
+                  <DocumentDropzone
+                    key={docType}
+                    label={docType}
+                    required
+                    helperText="Drag and drop PDF (max 5 MB) or click to upload"
+                    error={documentErrors[docType] || ''}
+                    onFileSelected={(file) => handleDocumentSelected(docType, file)}
+                  />
+                ))}
+              </div>
+              {fieldErrors.documents ? <p className="text-xs text-red-600">{fieldErrors.documents}</p> : null}
 
               <div className="rounded-xl border border-slate-200 p-4">
                 <Label htmlFor="referral">How did you hear about us?</Label>
@@ -641,11 +870,18 @@ export default function ApplyPage() {
   );
 }
 
-function Field({ label, value, onChange, type = 'text' }) {
+function Field({ label, value, onChange, type = 'text', error = '' }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        type={type}
+        value={value}
+        aria-invalid={Boolean(error)}
+        className={error ? 'border-red-500 focus-visible:ring-red-500' : ''}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }

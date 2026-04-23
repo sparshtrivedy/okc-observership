@@ -215,6 +215,12 @@ export function AppProvider({ children }) {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
+      if (body?.fieldErrors && typeof body.fieldErrors === 'object') {
+        const firstFieldError = Object.values(body.fieldErrors).find((message) => typeof message === 'string' && message);
+        if (firstFieldError) {
+          throw new Error(firstFieldError);
+        }
+      }
       throw new Error(body?.error || 'Failed to create applicant');
     }
 
@@ -289,6 +295,42 @@ export function AppProvider({ children }) {
     clearStudentSession();
   }
 
+  async function refreshStudentProfile() {
+    if (!studentToken) return null;
+
+    try {
+      const response = await fetch('/api/student/me', {
+        headers: {
+          Authorization: `Bearer ${studentToken}`
+        }
+      });
+
+      if (!response.ok) {
+        clearStudentSession();
+        return null;
+      }
+
+      const data = await response.json();
+      if (!data?.applicant) return null;
+
+      const normalized = normalizeApplicant(data.applicant);
+      setStudentProfile(normalized);
+      setCurrentStudentId(normalized.id);
+      setApplicants((prev) => {
+        const existing = prev.some((item) => item.id === normalized.id);
+        if (existing) {
+          return prev.map((item) => (item.id === normalized.id ? normalized : item));
+        }
+
+        return [normalized, ...prev];
+      });
+
+      return normalized;
+    } catch {
+      return null;
+    }
+  }
+
   async function updateDocumentStatus(applicantId, docType, status) {
     if (!adminToken) throw new Error('Admin authentication required');
 
@@ -354,12 +396,13 @@ export function AppProvider({ children }) {
   }
 
   async function uploadDocument(applicantId, docType, file, authToken) {
-    const activeToken = authToken || studentToken || adminToken;
+    const activeToken = authToken || adminToken || studentToken;
     if (!activeToken) throw new Error('Authentication required to upload documents');
     if (!file) throw new Error('No file selected');
 
     const uploadName = file.name || 'document.pdf';
     const uploadType = file.type || 'application/pdf';
+    const uploadSize = Number(file.size || 0);
 
     const presignResponse = await fetch(`/api/applicants/${applicantId}/documents/presign-upload`, {
       method: 'POST',
@@ -370,7 +413,8 @@ export function AppProvider({ children }) {
       body: JSON.stringify({
         docType,
         fileName: uploadName,
-        contentType: uploadType
+        contentType: uploadType,
+        fileSize: uploadSize
       })
     });
 
@@ -404,6 +448,7 @@ export function AppProvider({ children }) {
         upload: {
           fileName: uploadName,
           contentType: uploadType,
+          size: uploadSize,
           key,
           url: null
         }
@@ -411,7 +456,8 @@ export function AppProvider({ children }) {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload document metadata');
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error || 'Failed to upload document metadata');
     }
 
     const data = await response.json();
@@ -424,7 +470,7 @@ export function AppProvider({ children }) {
   }
 
   async function getDocumentDownloadUrl(applicantId, docType, authToken) {
-    const activeToken = authToken || studentToken || adminToken;
+    const activeToken = authToken || adminToken || studentToken;
     if (!activeToken) throw new Error('Authentication required to access documents');
 
     const response = await fetch(
@@ -455,6 +501,7 @@ export function AppProvider({ children }) {
     adminLogout,
     studentLogin,
     studentLogout,
+    refreshStudentProfile,
     uploadDocument,
     getDocumentDownloadUrl,
     updateDocumentStatus,
